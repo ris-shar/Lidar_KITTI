@@ -1,118 +1,265 @@
-import numpy as np
-import cv2
+import cv2, os, numpy as np, open3d as o3d, matplotlib.pyplot as plt
 from ultralytics import YOLO
-import open3d as o3d
-import matplotlib.pyplot as plt
+from sklearn.cluster import DBSCAN
+
+# ========== CONFIG ==========
+root = "/home/rishav/Documents/Project"
+frame   = "000100"
+split   = "testing"          # or "training"
+image_path  = f"{root}/data_object_image_2/{split}/image_2/{frame}.png"
+lidar_path  = f"{root}/data_object_velodyne/{split}/velodyne/{frame}.bin"
+calib_path  = f"{root}/data_object_calib/{split}/calib/{frame}.txt"
+model = YOLO("/home/rishav/Downloads/yolo11m-seg.pt")   # segmentation model
+
+# ========== CALIBRATION ==========
+def read_calib(fn):
+    vals = [l.split()[1:] for l in open(fn)]
+    P2 = np.array(vals[2], float).reshape(3,4)
+    R0 = np.eye(4); R0[:3,:3] = np.array(vals[4], float).reshape(3,3)
+    Tr  = np.eye(4); Tr[:3,:] = np.array(vals[5], float).reshape(3,4)
+    return P2, R0, Tr
+
+# -------- LiDAR helpers ----------
+def load_lidar(path):              # (N,3)
+    return np.fromfile(path, np.float32).reshape(-1,4)[:,:3]
+
+def to_cam(points, Tr, R0):        # LiDAR→camera
+    p = np.hstack((points, np.ones((len(points),1))))
+    return (R0 @ Tr @ p.T).T[:,:3]
+
+def project_cam(points_cam, P2):   # camera→image
+    p = np.hstack((points_cam, np.ones((len(points_cam),1))))
+    im = (P2 @ p.T).T
+    return im[:,:2] / im[:,2:3]
+
+# -------- YOLO segmentation ------
+def car_masks(img):
+    res = model(img)[0]
+    car_id = [i for i,n in model.names.items() if n=='car']
+    ms=[]
+    for i,cls in enumerate(res.boxes.cls):
+        if int(cls)==car_id[0] and res.masks is not None:
+            ms.append(res.masks.data[i].cpu().numpy())
+    return ms
+
+# -------- associate 3-D points with masks ----
+def associate(points_img, masks, shape):
+    h,w = shape[:2]
+    masks = [cv2.resize(m,(w,h),interpolation=cv2.INTER_NEAREST) for m in masks]
+    assoc = -np.ones(len(points_img),int)
+    for idx,(u,v) in enumerate(points_img.astype(int)):
+        if 0<=u<w and 0<=v<h:
+            for mid,m in enumerate(masks):
+                if m[v,u]: assoc[idx]=mid; break
+    return assoc, masks
+
+# -------- DBSCAN + bbox ----------
+import numpy as np
+from sklearn.cluster import DBSCAN
 
 
-def load_calibration(calib_file):
-    """Load calibration data from file."""
-    calib = {}
-    with open(calib_file) as f:
-        for line in f:
-            if ':' in line:
-                key, value = line.strip().split(':', 1)
-                calib[key] = np.array([float(x) for x in value.strip().split()])
-    # Reshape matrices
-    calib['P2'] = calib['P2'].reshape(3, 4)
-    calib['R0_rect'] = calib['R0_rect'].reshape(3, 3)
-    calib['Tr_velo_to_cam'] = calib['Tr_velo_to_cam'].reshape(3, 4)
-    return calib
+def largest_cluster(pts, eps=0.5, min_samples=10):
+    """Returns empty array if no cluster found, always returns 2D array"""
+    if len(pts) == 0:
+        return np.empty((0, 3))  # Return empty 2D array
+
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(pts)
+    labels = db.labels_
+
+    # Handle case where all points are noise
+    if np.all(labels == -1):
+        return np.empty((0, 3))
+
+    # Get largest cluster (excluding noise)
+    valid_labels = labels[labels != -1]
+    if len(valid_labels) == 0:
+        return np.empty((0, 3))
+
+    largest_label = np.argmax(np.bincount(valid_labels))
+    cluster_pts = pts[labels == largest_label]
+
+    # Ensure 2D output even for single point
+    return cluster_pts.reshape(-1, 3)
 
 
-def load_image(image_path):
-    """Load image from file."""
-    image = cv2.imread(image_path)
-    return image
+def aabb_corners(pts):
+    mn,mx=pts.min(0),pts.max(0)
+    return np.array([[mn[0],mn[1],mn[2]],
+                     [mx[0],mn[1],mn[2]],
+                     [mx[0],mx[1],mn[2]],
+                     [mn[0],mx[1],mn[2]],
+                     [mn[0],mn[1],mx[2]],
+                     [mx[0],mn[1],mx[2]],
+                     [mx[0],mx[1],mx[2]],
+                     [mn[0],mx[1],mx[2]]])
 
+# ========== MAIN ==========
+img   = cv2.imread(image_path)
+P2,R0,Tr = read_calib(calib_path)
+lidar = load_lidar(lidar_path)
 
-def segment_image(model, image):
-    """Perform instance segmentation on the image."""
-    results = model(image)
-    return results
-def load_point_cloud(bin_path):
-    """Load point cloud data from .bin file."""
-    point_cloud = np.fromfile(bin_path, dtype=np.float32).reshape(-1, 4)
-    return point_cloud
-def project_lidar_to_image(points, calib):
-    """Project LiDAR points to image plane."""
-    # Convert to homogeneous coordinates
-    points_hom = np.hstack((points[:, :3], np.ones((points.shape[0], 1))))
-    # Apply transformations
-    R0_rect = np.eye(4)
-    R0_rect[:3, :3] = calib['R0_rect']
-    Tr_velo_to_cam = np.eye(4)
-    Tr_velo_to_cam[:3, :] = calib['Tr_velo_to_cam']
-    P2 = calib['P2']
-    # Compute projection matrix
-    proj_matrix = P2 @ R0_rect @ Tr_velo_to_cam
-    # Project points
-    points_cam = proj_matrix @ points_hom.T
-    points_cam = points_cam.T
-    # Normalize
-    points_cam[:, 0] /= points_cam[:, 2]
-    points_cam[:, 1] /= points_cam[:, 2]
-    return points_cam[:, :2]
-def associate_points_with_masks(points_img, masks):
-    """Associate each point with a mask."""
-    associations = []
-    for i, point in enumerate(points_img):
-        x, y = int(point[0]), int(point[1])
-        for idx, mask in enumerate(masks):
-            if 0 <= x < mask.shape[1] and 0 <= y < mask.shape[0]:
-                if mask[y, x]:
-                    associations.append((i, idx))
-                    break
-    return associations
+# 1) LiDAR→camera for projection
+cam   = to_cam(lidar,Tr,R0)
+proj2d= project_cam(cam,P2)
 
+masks = car_masks(img)
+assoc,_= associate(proj2d, masks, img.shape)
 
-def visualize_point_cloud(points, associations, masks_colors):
-    """Visualize point cloud with colors based on associations."""
-    colors = np.zeros((points.shape[0], 3))
-    for idx, mask_idx in associations:
-        colors[idx] = masks_colors[mask_idx]
-    # Create Open3D point cloud
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points[:, :3])
-    pcd.colors = o3d.utility.Vector3dVector(colors)
-    o3d.visualization.draw_geometries([pcd])
+# -------- build color map ----------
+ids = [i for i in np.unique(assoc) if i>=0]
+colors = {i:np.random.rand(3) for i in ids}
 
+# -------- Open3D visualization -----
+pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(lidar))
+col = np.tile([0.5,0.5,0.5], (len(lidar),1))
+for i in ids:
+    col[assoc==i]=colors[i]
+pcd.colors=o3d.utility.Vector3dVector(col)
 
-def visualize_bev(points, associations, masks_colors):
-    """Visualize bird's eye view."""
-    bev_map = np.zeros((800, 800, 3), dtype=np.uint8)
-    for idx, mask_idx in associations:
-        x, y = points[idx, 0], points[idx, 1]
-        x_img = int((x + 40) * 10)
-        y_img = int((y + 40) * 10)
-        if 0 <= x_img < 800 and 0 <= y_img < 800:
-            bev_map[y_img, x_img] = (masks_colors[mask_idx] * 255).astype(np.uint8)
-    plt.imshow(bev_map)
-    plt.title("Bird's Eye View")
+boxes = []
+for i in ids:
+    pts = lidar[assoc == i]
+    if pts.shape[0] == 0:
+        continue  # Skip if no points for this object
+
+    pts = largest_cluster(pts)
+
+    if pts.ndim != 2 or pts.shape[1] != 3 or pts.shape[0] < 20:
+        continue  # Skip if result isn't a valid Nx3 array
+
+    # Optional: visualize clustered points in matplotlib (only if needed)
+    # ax.scatter(pts[:, 1], pts[:, 0], s=3, c=[c])  # only if `pts` is valid
+
+    cor = aabb_corners(pts)
+    lines = [
+        [0, 1], [1, 2], [2, 3], [3, 0],
+        [4, 5], [5, 6], [6, 7], [7, 4],
+        [0, 4], [1, 5], [2, 6], [3, 7]
+    ]
+
+    ls = o3d.geometry.LineSet(
+        points=o3d.utility.Vector3dVector(cor),
+        lines=o3d.utility.Vector2iVector(lines)
+    )
+    ls.colors = o3d.utility.Vector3dVector([[1, 0, 0]] * len(lines))
+    boxes.append(ls)
+
+o3d.visualization.draw_geometries([pcd, *boxes])
+
+def add_coordinate_axes(vis, size=5.0):
+    """Add XYZ axes to Open3D visualization"""
+    axes = o3d.geometry.LineSet()
+    axes.points = o3d.utility.Vector3dVector([
+        [0,0,0], [size,0,0],  # X (red)
+        [0,0,0], [0,size,0],   # Y (green)
+        [0,0,0], [0,0,size]    # Z (blue)
+    ])
+    axes.lines = o3d.utility.Vector2iVector([[0,1],[2,3],[4,5]])
+    axes.colors = o3d.utility.Vector3dVector([
+        [1,0,0], [0,1,0], [0,0,1]
+    ])
+    vis.add_geometry(axes)
+def visualize_bev(points, associations, colors):
+    plt.figure(figsize=(12, 8))
+    ax = plt.subplot(111)
+
+    # Transform coordinates for proper BEV:
+    # X (forward) → vertical axis (up in plot)
+    # Y (left) → horizontal axis (right in plot)
+    x = points[:, 0]  # Forward direction
+    y = -points[:, 1]  # Left/right direction (negative for proper orientation)
+
+    # Plot background points
+    bg_mask = (associations < 0)
+    ax.scatter(y[bg_mask], x[bg_mask], s=1, c='lightgray', alpha=0.3, label='Background')
+
+    # Plot each car instance
+    for car_id in np.unique(associations):
+        if car_id < 0:
+            continue
+
+        car_mask = (associations == car_id)
+        car_points = points[car_mask]
+
+        if len(car_points) < 10:  # Minimum points threshold
+            continue
+
+        # Get cluster points
+        cluster = largest_cluster(car_points)
+        if len(cluster) == 0:
+            continue
+
+        color = colors[car_id]
+
+        # Transform cluster coordinates
+        x_cluster = cluster[:, 0]
+        y_cluster = -cluster[:, 1]
+
+        # Plot points
+        ax.scatter(y_cluster, x_cluster, s=3, c=[color], label=f'Car {car_id}')
+
+        # Calculate bounding box
+        min_y, min_x = np.min(y_cluster), np.min(x_cluster)
+        max_y, max_x = np.max(y_cluster), np.max(x_cluster)
+
+        # Draw bounding box
+        rect = plt.Rectangle(
+            (min_y, min_x),
+            max_y - min_y,
+            max_x - min_x,
+            linewidth=1.5,
+            edgecolor=color,
+            facecolor='none'
+        )
+        ax.add_patch(rect)
+
+    # Configure plot
+    ax.set_xlabel('Right ← Y → Left')
+    ax.set_ylabel('Forward (X) ↑')
+    ax.set_title("Bird's Eye View")
+    ax.legend()
+    ax.grid(True)
+    ax.set_aspect('equal')
     plt.show()
-def main():
-    # Paths
-    calib_path = "/home/rishav/Documents/Project/data_object_calib/training/calib/000000.txt"
-    image_path = "/home/rishav/Documents/Project/data_object_image_2/training/image_2/000000.png"
-    bin_path = "/home/rishav/Documents/Project/data_object_velodyne/training/velodyne/000000.bin"
-    # Load data
-    calib = load_calibration(calib_path)
-    image = load_image(image_path)
-    point_cloud = load_point_cloud(bin_path)
-    # Load model
-    model = YOLO("/home/rishav/Downloads/yolo11m-seg.pt")  # Replace with your model path
-    # Perform segmentation
-    results = segment_image(model, image)
-    masks = results[0].masks.data.cpu().numpy()
-    # Generate random colors for masks
-    masks_colors = np.random.rand(len(masks), 3)
-    # Project LiDAR to image
-    points_img = project_lidar_to_image(point_cloud, calib)
-    # Associate points with masks
-    associations = associate_points_with_masks(points_img, masks)
-    # Visualize
-    visualize_point_cloud(point_cloud, associations, masks_colors)
-    visualize_bev(point_cloud, associations, masks_colors)
+# -------- BEV ----------
+# plt.figure(figsize=(12, 6))
+# ax = plt.subplot(111)
+# bg = assoc < 0
+# ax.scatter(lidar[bg, 1], lidar[bg, 0], s=1, c='lightgray', alpha=.3)
+#
+# for i in ids:
+#     pts = largest_cluster(lidar[assoc == i])
+#     c = colors[i]
+#
+#     # Skip if no valid points or wrong shape
+#     if len(pts) == 0 or pts.ndim != 2 or pts.shape[1] != 3:
+#         continue
+#
+#     ax.scatter(pts[:, 1], pts[:, 0], s=3, c=[c])
+#     mn, mx = pts.min(0), pts.max(0)
+#     ax.add_patch(plt.Rectangle(
+#         (mn[1], mn[0]),
+#         mx[1] - mn[1],
+#         mx[0] - mn[0],
+#         ec=c, fc='none', lw=1.5
+#     ))
+# -------- Segmentation overlay ----------
+overlay = img.copy()
+h, w = img.shape[:2]
 
-if __name__ == "__main__":
-    main()
+for m, c in zip(masks, colors.values()):
+    # Resize each mask to the original image size
+    m_resized = cv2.resize(m.astype(np.uint8), (w, h), interpolation=cv2.INTER_NEAREST)
+
+    # Overlay the mask color onto the image
+    overlay[m_resized.astype(bool)] = (np.array(c) * 255).astype(np.uint8)
+
+# Optional: blended visualization
+ids = [i for i in np.unique(assoc) if i >= 0]
+colors = {i: np.random.rand(3) for i in ids}
+#calling the vidulaization
+visualize_bev(lidar, assoc, colors)
+cv2.imshow("Segmentation Overlay", cv2.addWeighted(img, 0.5, overlay, 0.5, 0))
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
