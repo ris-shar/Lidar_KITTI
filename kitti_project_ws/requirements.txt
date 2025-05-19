@@ -1,0 +1,6 @@
+open3d==0.18.0
+ultralytics==8.2.0
+numpy<2
+opencv-python
+matplotlib
+scikit-learn

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>kitti_project</name>
+  <version>0.1.0</version>
+  <description>ROS 2 nodes for KITTI semantic segmentation, point cloud processing and BEV generation.</description>
+
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <!-- ──────── runtime / build dependencies ──────── -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-sklearn</exec_depend>
+  <exec_depend>python3-open3d</exec_depend>
+
+  <!-- ──────── tests ──────── -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- build_type **must** live inside <export> -->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

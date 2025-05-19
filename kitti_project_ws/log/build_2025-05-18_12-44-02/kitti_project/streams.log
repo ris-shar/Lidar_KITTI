@@ -1,0 +1,13 @@
+[0.843s] Invoking command in '/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/src/kitti_project': PYTHONPATH=/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/install/kitti_project/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/kitti_project build --build-base /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/build install --record /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/install.log --single-version-externally-managed install_data
+[1.046s] /home/rishav/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[1.046s]   warnings.warn(msg)
+[1.211s] running egg_info
+[1.241s] creating ../../build/kitti_project/kitti_project.egg-info
+[1.241s] writing ../../build/kitti_project/kitti_project.egg-info/PKG-INFO
+[1.242s] writing dependency_links to ../../build/kitti_project/kitti_project.egg-info/dependency_links.txt
+[1.242s] writing entry points to ../../build/kitti_project/kitti_project.egg-info/entry_points.txt
+[1.243s] writing requirements to ../../build/kitti_project/kitti_project.egg-info/requires.txt
+[1.243s] writing top-level names to ../../build/kitti_project/kitti_project.egg-info/top_level.txt
+[1.243s] writing manifest file '../../build/kitti_project/kitti_project.egg-info/SOURCES.txt'
+[1.270s] error: package directory 'kitti_project' does not exist
+[1.292s] Invoked command in '/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/src/kitti_project' returned '1': PYTHONPATH=/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/install/kitti_project/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/kitti_project build --build-base /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/build install --record /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/install.log --single-version-externally-managed install_data

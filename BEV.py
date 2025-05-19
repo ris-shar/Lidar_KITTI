@@ -66,24 +66,6 @@ def draw_segmentation_on_image(image, masks):
     return blended
 
 
-def get_3d_bbox(points):
-    if len(points) == 0:
-        return None
-    min_pt = np.min(points, axis=0)
-    max_pt = np.max(points, axis=0)
-    corners = np.array([
-        [min_pt[0], min_pt[1], min_pt[2]],
-        [min_pt[0], min_pt[1], max_pt[2]],
-        [min_pt[0], max_pt[1], min_pt[2]],
-        [min_pt[0], max_pt[1], max_pt[2]],
-        [max_pt[0], min_pt[1], min_pt[2]],
-        [max_pt[0], min_pt[1], max_pt[2]],
-        [max_pt[0], max_pt[1], min_pt[2]],
-        [max_pt[0], max_pt[1], max_pt[2]],
-    ])
-    return corners
-
-
 def filter_instance_points(points, eps=0.5, min_samples=10):
     if points.shape[0] < min_samples:
         return points
@@ -94,6 +76,36 @@ def filter_instance_points(points, eps=0.5, min_samples=10):
     unique, counts = np.unique(labels[labels != -1], return_counts=True)
     largest_cluster = unique[np.argmax(counts)]
     return points[labels == largest_cluster]
+
+
+def get_oriented_bbox(points):
+    if len(points) < 3:
+        return None
+    centroid = np.mean(points, axis=0)
+    centered = points - centroid
+    cov = np.cov(centered[:, :2].T)
+    eig_vals, eig_vecs = np.linalg.eig(cov)
+    sort_idx = np.argsort(eig_vals)[::-1]
+    main_dir = eig_vecs[:, sort_idx[0]]
+    angle = np.arctan2(main_dir[1], main_dir[0])
+    rot = np.array([[np.cos(angle), -np.sin(angle)],
+                    [np.sin(angle),  np.cos(angle)]])
+    rotated = centered[:, :2] @ rot
+    min_xy = np.min(rotated, axis=0)
+    max_xy = np.max(rotated, axis=0)
+    corners_2d = np.array([
+        [min_xy[0], min_xy[1]],
+        [max_xy[0], min_xy[1]],
+        [max_xy[0], max_xy[1]],
+        [min_xy[0], max_xy[1]]
+    ])
+    corners_world = corners_2d @ rot.T + centroid[:2]
+    z_min, z_max = np.min(points[:, 2]), np.max(points[:, 2])
+    corners = []
+    for z in [z_min, z_max]:
+        for xy in corners_world:
+            corners.append([xy[0], xy[1], z])
+    return np.array(corners)
 
 
 def visualize_open3d(points, associations, color_map):
@@ -112,11 +124,11 @@ def visualize_open3d(points, associations, color_map):
         instance_points = points[associations == instance_id]
         filtered_points = filter_instance_points(instance_points, eps=1.0, min_samples=3)
 
-        bbox_corners = get_3d_bbox(filtered_points)
+        bbox_corners = get_oriented_bbox(filtered_points)
         if bbox_corners is not None:
             lines = [
-                [0, 1], [0, 2], [1, 3], [2, 3],
-                [4, 5], [4, 6], [5, 7], [6, 7],
+                [0, 1], [1, 2], [2, 3], [3, 0],
+                [4, 5], [5, 6], [6, 7], [7, 4],
                 [0, 4], [1, 5], [2, 6], [3, 7]
             ]
             box = o3d.geometry.LineSet()
@@ -142,15 +154,16 @@ def visualize_bev(points, associations, color_map):
             continue
         color = color_map[instance_id]
         ax.scatter(filtered_points[:, 0], filtered_points[:, 1], c=[color], s=2)
-        min_x, min_y = np.min(filtered_points[:, :2], axis=0)
-        max_x, max_y = np.max(filtered_points[:, :2], axis=0)
-        rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y,
-                             linewidth=1.5, edgecolor=color, facecolor='none')
-        ax.add_patch(rect)
+
+        bbox_corners = get_oriented_bbox(filtered_points)
+        if bbox_corners is not None:
+            xy = bbox_corners[:4, :2]
+            xy = np.vstack([xy, xy[0]])
+            ax.plot(xy[:, 0], xy[:, 1], c=color)
 
     ax.set_xlabel('X (Forward)')
     ax.set_ylabel('Y (Left)')
-    ax.set_title("Filtered Bird's-Eye View (BEV)")
+    ax.set_title("Filtered Bird's-Eye View (BEV) with Oriented BBoxes")
     ax.set_aspect('equal')
     plt.grid(True)
     plt.show()

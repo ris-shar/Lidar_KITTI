@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, Image
-from your_package.msg import SegmentationResult
+from kitti_project.msg import SegmentationResult
 import numpy as np
 import open3d as o3d
 from cv_bridge import CvBridge

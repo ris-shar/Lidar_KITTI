@@ -1,0 +1,35 @@
+***************************************************
+* Open3D: A Modern Library for 3D Data Processing *
+*                                                 *
+* Version 0.19.0                                  *
+* Docs    https://www.open3d.org/docs             *
+* Code    https://github.com/isl-org/Open3D       *
+***************************************************
+usage: open3d [-V] [-h] {example,draw,draw_web} ...
+
+Open3D commad-line tools
+
+options:
+  -V, --version         Show program's version number and exit.
+  -h, --help            Show this help message and exit.
+
+command:
+  {example,draw,draw_web}
+                        Select one of these commands.
+                         
+    example             View or run an Open3D example. Example usage: 
+                          open3d example --list                                  # List examples
+                          open3d example --list geometry                         # List examples in geometry
+                          open3d example geometry/point_cloud_convex_hull        # Run an example
+                          open3d example --show geometry/point_cloud_convex_hull # Show source code of an example
+                        
+    draw                Load and visualize a 3D model. Example usage:
+                          open3d draw                                            # Start a blank Open3D viewer
+                          open3d draw path/to/model_file                         # Visualize a 3D model file
+                        
+    draw_web            Load and visualize a 3D model in a browser with WebRTC. Optionally, you can
+                        customize the serving IP address and port with WEBRTC_IP and WEBRTC_PORT
+                        environment variables. Example usage:
+                          open3d draw_web path/to/model_file            # Visualize at http://localhost:8888
+                          open3d draw_web --bind_all path/to/model_file # Serve to the entire local network
+                                                                        # at http://hostname.domainname:8888

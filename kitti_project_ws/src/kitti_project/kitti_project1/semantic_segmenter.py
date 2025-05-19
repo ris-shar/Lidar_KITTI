@@ -4,7 +4,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from ultralytics import YOLO
-from your_package.msg import SegmentationResult  # Custom message
+from kitti_project.msg import SegmentationResult  # Custom message
 
 
 class SemanticSegmenter(Node):

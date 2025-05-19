@@ -1,0 +1,4 @@
+[0.012s] Invoking command in '/home/rishav/PycharmProjects/PythonProject/build/your_package': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/rishav/PycharmProjects/PythonProject/src/kitti_project -DCMAKE_INSTALL_PREFIX=/home/rishav/PycharmProjects/PythonProject/install/your_package
+[0.042s] [0mCMake Error: The source directory "/home/rishav/PycharmProjects/PythonProject/src/kitti_project" does not appear to contain CMakeLists.txt.
+[0.043s] Specify --help for usage, or press the help button on the CMake GUI.[0m
+[0.047s] Invoked command in '/home/rishav/PycharmProjects/PythonProject/build/your_package' returned '1': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/rishav/PycharmProjects/PythonProject/src/kitti_project -DCMAKE_INSTALL_PREFIX=/home/rishav/PycharmProjects/PythonProject/install/your_package

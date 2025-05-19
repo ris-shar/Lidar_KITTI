@@ -1,0 +1,11 @@
+/home/rishav/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+  warnings.warn(msg)
+running egg_info
+creating ../../build/kitti_project/kitti_project.egg-info
+writing ../../build/kitti_project/kitti_project.egg-info/PKG-INFO
+writing dependency_links to ../../build/kitti_project/kitti_project.egg-info/dependency_links.txt
+writing entry points to ../../build/kitti_project/kitti_project.egg-info/entry_points.txt
+writing requirements to ../../build/kitti_project/kitti_project.egg-info/requires.txt
+writing top-level names to ../../build/kitti_project/kitti_project.egg-info/top_level.txt
+writing manifest file '../../build/kitti_project/kitti_project.egg-info/SOURCES.txt'
+error: package directory 'kitti_project' does not exist

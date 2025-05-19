@@ -12,7 +12,6 @@ point_cloud_path = "/home/rishav/Documents/Project/data_object_velodyne/testing/
 calib_path = "/home/rishav/Documents/Project/data_object_calib/testing/calib/000100.txt"
 model = YOLO("/home/rishav/Downloads/yolo11m-seg.pt")
 
-
 # ==== FUNCTIONS ====
 
 def read_calib(calib_file):
@@ -39,7 +38,6 @@ def project_to_image(points_cam, P2):
     proj = proj[:, :2] / proj[:, 2:3]
     return proj
 
-
 def segment_image(img):
     results = model(img)[0]
     car_masks = []
@@ -47,28 +45,12 @@ def segment_image(img):
 
     for i, cls in enumerate(results.boxes.cls):
         if int(cls.item()) in car_class_ids and results.masks is not None:
-            # Resize mask to match original image dimensions
             mask = results.masks.data[i].cpu().numpy()
             h, w = img.shape[:2]
             mask_resized = cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST)
             car_masks.append(mask_resized)
     return car_masks
 
-
-def visualize_segmentation_overlay(img, masks):
-    overlay = img.copy()
-    for m in masks:
-        color = np.random.randint(0, 255, 3).tolist()
-        # Create a colored mask
-        colored_mask = np.zeros_like(overlay)
-        colored_mask[m.astype(bool)] = color
-
-        # Blend with original image
-        overlay = cv2.addWeighted(overlay, 0.7, colored_mask, 0.3, 0)
-
-    cv2.imshow("Segmentation Overlay", overlay)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 def associate_lidar_with_masks(points_2d, masks, img_shape):
     h, w = img_shape[:2]
     associations = -np.ones((points_2d.shape[0],), dtype=int)
@@ -107,6 +89,13 @@ def visualize_open3d(points, associations):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     colors = np.zeros_like(points)
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    #vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(size=3.0))  # Add coordinate axes
+
+    vis.add_geometry(pcd)
+    opt = vis.get_render_option()
+    opt.point_size = 0.5
 
     boxes = []
     for car_id in np.unique(associations):
@@ -122,48 +111,39 @@ def visualize_open3d(points, associations):
                 points=o3d.utility.Vector3dVector(corners),
                 lines=o3d.utility.Vector2iVector(lines)
             )
-            box.colors = o3d.utility.Vector3dVector([[1,0,0] for _ in lines])
-            boxes.append(box)
+            box.colors = o3d.utility.Vector3dVector([[1, 0, 0] for _ in lines])
+            vis.add_geometry(box)
 
     pcd.colors = o3d.utility.Vector3dVector(colors)
-    o3d.visualization.draw_geometries([pcd] + boxes)
-
+    vis.run()
+    vis.destroy_window()
 
 def visualize_bev(points, associations):
     plt.figure(figsize=(12, 8))
     ax = plt.subplot(111)
 
-    # Create consistent color mapping
     unique_ids = np.unique(associations[associations >= 0])
     color_map = {i: np.random.rand(3) for i in unique_ids}
 
-    # Plot background points
+    # Background points (gray)
     bg_mask = (associations < 0)
-    ax.scatter(points[bg_mask, 1], points[bg_mask, 0],  # Note: Y vs X for proper orientation
-               c='lightgray', s=1, alpha=0.3, label='Background')
+    ax.scatter(points[bg_mask, 1], points[bg_mask, 0], c='lightgray', s=1, alpha=0.3, label='Background')
 
-    # Plot each car instance
     for car_id in unique_ids:
         car_mask = (associations == car_id)
-        if np.sum(car_mask) < 10:  # Skip small clusters
+        if np.sum(car_mask) < 10:
             continue
-
         color = color_map[car_id]
         car_pts = points[car_mask]
 
-        # Plot points
         ax.scatter(car_pts[:, 1], car_pts[:, 0], c=[color], s=5, label=f'Car {car_id}')
-
-        # Calculate bounding box
         min_y, min_x = np.min(car_pts[:, 1]), np.min(car_pts[:, 0])
         max_y, max_x = np.max(car_pts[:, 1]), np.max(car_pts[:, 0])
 
-        # Draw rectangle
         rect = plt.Rectangle((min_y, min_x), max_y - min_y, max_x - min_x,
                              linewidth=1.5, edgecolor=color, facecolor='none')
         ax.add_patch(rect)
 
-    # Configure plot
     ax.set_xlabel('Y (Left/Right) →')
     ax.set_ylabel('X (Forward) ↑')
     ax.set_title("Bird's Eye View")

@@ -1,0 +1,2 @@
+Invoking command in '/home/rishav/PycharmProjects/PythonProject/build/your_package': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/rishav/PycharmProjects/PythonProject/src/kitti_project -DCMAKE_INSTALL_PREFIX=/home/rishav/PycharmProjects/PythonProject/install/your_package
+Invoked command in '/home/rishav/PycharmProjects/PythonProject/build/your_package' returned '1': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/rishav/PycharmProjects/PythonProject/src/kitti_project -DCMAKE_INSTALL_PREFIX=/home/rishav/PycharmProjects/PythonProject/install/your_package
