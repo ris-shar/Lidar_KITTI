@@ -1,0 +1,6 @@
+# Custom ROSDEP rules for Python packages
+your_package:
+  ubuntu:
+    jammy: [python3-pip]  # Base dependency
+  pip:
+    packages: [ultralytics, open3d, opencv-python, numpy, matplotlib]

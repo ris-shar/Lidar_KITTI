@@ -1,0 +1,10 @@
+[0.849s] Invoking command in '/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project': PYTHONPATH=/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/install/kitti_project/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/build --no-deps symlink_data
+[1.056s] /home/rishav/.local/lib/python3.10/site-packages/setuptools/_distutils/dist.py:289: UserWarning: Unknown distribution option: 'tests_require'
+[1.056s]   warnings.warn(msg)
+[1.134s] usage: setup.py [global_opts] cmd1 [cmd1_opts] [cmd2 [cmd2_opts] ...]
+[1.134s]    or: setup.py --help [cmd1 cmd2 ...]
+[1.135s]    or: setup.py --help-commands
+[1.135s]    or: setup.py cmd --help
+[1.135s] 
+[1.135s] error: option --editable not recognized
+[1.156s] Invoked command in '/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project' returned '1': PYTHONPATH=/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/rishav/PycharmProjects/PythonProject/kitti_project_ws/install/kitti_project/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/rishav/PycharmProjects/PythonProject/kitti_project_ws/build/kitti_project/build --no-deps symlink_data

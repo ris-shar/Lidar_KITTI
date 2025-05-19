@@ -1,0 +1,4 @@
+[console_scripts]
+bev_node = kitti_project.bev_generator:main
+pc_node = kitti_project.pointcloud_processor:main
+semantic_node = kitti_project.semantic_segmenter:main

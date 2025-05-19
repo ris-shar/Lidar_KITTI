@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: kitti_project
+Version: 0.1.0
+Summary: Semantic segmentation, point-cloud and BEV nodes for KITTI
+Maintainer: Your Name
+Maintainer-email: you@example.com
+License: MIT
+Requires-Dist: setuptools
+Requires-Dist: numpy
+Requires-Dist: opencv-python
+Requires-Dist: open3d
+Requires-Dist: scikit-learn
+Requires-Dist: ultralytics
+Requires-Dist: matplotlib
+Dynamic: license
+Dynamic: maintainer
+Dynamic: maintainer-email
+Dynamic: requires-dist
+Dynamic: summary

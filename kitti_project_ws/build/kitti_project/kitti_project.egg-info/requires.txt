@@ -1,0 +1,7 @@
+setuptools
+numpy
+opencv-python
+open3d
+scikit-learn
+ultralytics
+matplotlib
