@@ -4,8 +4,8 @@ from sklearn.cluster import DBSCAN
 
 # ========== CONFIG ==========
 root = "/home/rishav/Documents/Project"
-frame   = "000100"
-split   = "testing"          # or "training"
+frame   = "000250"
+split   = "training"          # or "training"
 image_path  = f"{root}/data_object_image_2/{split}/image_2/{frame}.png"
 lidar_path  = f"{root}/data_object_velodyne/{split}/velodyne/{frame}.bin"
 calib_path  = f"{root}/data_object_calib/{split}/calib/{frame}.txt"
@@ -43,15 +43,38 @@ def car_masks(img):
     return ms
 
 # -------- associate 3-D points with masks ----
-def associate(points_img, masks, shape):
-    h,w = shape[:2]
-    masks = [cv2.resize(m,(w,h),interpolation=cv2.INTER_NEAREST) for m in masks]
-    assoc = -np.ones(len(points_img),int)
-    for idx,(u,v) in enumerate(points_img.astype(int)):
-        if 0<=u<w and 0<=v<h:
-            for mid,m in enumerate(masks):
-                if m[v,u]: assoc[idx]=mid; break
+def associate(points_img, masks, shape, points_cam=None):
+    h, w = shape[:2]
+    masks = [cv2.resize(m, (w, h), interpolation=cv2.INTER_NEAREST) for m in masks]
+    assoc = -np.ones(len(points_img), int)
+
+    # Optional: get mask centers in image
+    mask_centers = [np.argwhere(m).mean(axis=0)[::-1] for m in masks]  # (u, v) center
+
+    for idx, (u, v) in enumerate(points_img.astype(int)):
+        if not (0 <= u < w and 0 <= v < h):
+            continue
+
+        for mid, m in enumerate(masks):
+            if not m[v, u]:
+                continue
+
+            # (Optional) Distance to mask center – skip if far from center
+            center_u, center_v = mask_centers[mid]
+            if np.hypot(u - center_u, v - center_v) > 50:  # threshold in pixels
+                continue
+
+            # (Optional) Depth filtering – remove far points
+            if points_cam is not None:
+                depth = points_cam[idx][2]  # Z in camera
+                if depth > 60 or depth < 1:  # too far or too close
+                    continue
+
+            assoc[idx] = mid
+            break
+
     return assoc, masks
+
 
 # -------- DBSCAN + bbox ----------
 import numpy as np
@@ -103,7 +126,8 @@ cam   = to_cam(lidar,Tr,R0)
 proj2d= project_cam(cam,P2)
 
 masks = car_masks(img)
-assoc,_= associate(proj2d, masks, img.shape)
+assoc, _ = associate(proj2d, masks, img.shape, cam)
+
 
 # -------- build color map ----------
 ids = [i for i in np.unique(assoc) if i>=0]
@@ -246,6 +270,39 @@ def visualize_bev(points, associations, colors):
 # -------- Segmentation overlay ----------
 overlay = img.copy()
 h, w = img.shape[:2]
+
+for i in ids:
+    pts = lidar[assoc == i]
+    if pts.shape[0] == 0:
+        continue  # Skip if no points for this object
+
+    pts = largest_cluster(pts)
+
+    if pts.ndim != 2 or pts.shape[1] != 3 or pts.shape[0] < 20:
+        continue  # Skip if result isn't a valid Nx3 array
+
+    # Compute distances from sensor origin to each point
+    distances = np.linalg.norm(pts, axis=1)
+    min_distance = np.min(distances)
+    print(f"Car ID {i}: Closest point at {min_distance:.2f} meters")
+
+
+# Load ground truth annotations
+label_path = f"{root}/data_object_label_2/{split}/label_2/{frame}.txt"
+with open(label_path, 'r') as f:
+    lines = f.readlines()
+
+for line in lines:
+    parts = line.strip().split()
+    if parts[0] != 'Car':
+        continue  # Skip non-car objects
+
+    # Extract object location in camera coordinates
+    x, y, z = map(float, parts[11:14])
+    distance = np.sqrt(x**2 + y**2 + z**2)
+    print(f"Ground truth car at {distance:.2f} meters")
+
+
 
 for m, c in zip(masks, colors.values()):
     # Resize each mask to the original image size
