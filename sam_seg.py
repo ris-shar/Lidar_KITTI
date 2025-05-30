@@ -168,3 +168,45 @@ pcd.points = o3d.utility.Vector3dVector(pc)
 pcd.colors = o3d.utility.Vector3dVector(colors)
 o3d.visualization.draw_geometries([pcd] + bbox_lines)
 
+# ------------------ Load Ground Truth Labels ------------------
+def load_kitti_labels(label_path):
+    gt_coords = []
+    with open(label_path, 'r') as f:
+        for line in f:
+            if line.startswith("Car"):
+                parts = line.strip().split()
+                x, y, z = map(float, parts[11:14])  # in camera coordinates
+                gt_coords.append(np.array([x, y, z]))
+    return gt_coords
+
+def transform_cam_to_velo(coords_cam, R0, Tr_velo_to_cam):
+    R0_h = np.eye(4)
+    R0_h[:3, :3] = R0
+    Tr_h = np.eye(4)
+    Tr_h[:3, :] = Tr_velo_to_cam
+    P_cam = np.hstack((coords_cam, np.ones((coords_cam.shape[0], 1)))).T  # [4, N]
+    P_velo = np.linalg.inv(Tr_h @ R0_h) @ P_cam
+    return P_velo[:3, :].T  # [N, 3]
+
+label_path = f"{root}/data_object_label_2/training/label_2/{frame}.txt"
+
+gt_camera_coords = load_kitti_labels(label_path)
+gt_lidar_coords = transform_cam_to_velo(np.array(gt_camera_coords), R0, Tr_velo_to_cam)
+
+# ------------------ Compare with Computed Distances ------------------
+print("\n--- Distance Report ---")
+for idx, color in enumerate(car_colors):
+    car_pts = pc[(colors == np.array(color) / 255.0).all(axis=1)]
+    car_pts = filter_largest_cluster(car_pts)
+
+    if car_pts.shape[0] == 0:
+        print(f"Car {idx+1}: No valid point cloud data.")
+        continue
+
+    calc_dist = np.min(np.linalg.norm(car_pts, axis=1))  # min distance from origin
+
+    if idx < len(gt_lidar_coords):
+        gt_dist = np.linalg.norm(gt_lidar_coords[idx])
+        print(f"Car {idx+1}: Calculated = {calc_dist:.2f} m, Ground Truth = {gt_dist:.2f} m")
+    else:
+        print(f"Car {idx+1}: Calculated = {calc_dist:.2f} m, Ground Truth = Not available")
